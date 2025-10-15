@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}  # 这里保持原样
 
 jobs:
   release:
@@ -15,15 +15,10 @@ jobs:
     permissions:
       contents: write
       packages: write
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
 
       - name: Install dependencies
         run: |
@@ -38,9 +33,7 @@ jobs:
           python - << 'EOF'
           import json
           m = json.load(open('artifacts/metrics.json'))
-          with open('RELEASE_NOTES.md','w') as f:
-              f.write(f"Version: {m['version']}\n")
-              f.write(f"RMSE: {m['rmse']}\n")
+          open('RELEASE_NOTES.md','w').write(f"Version: {m['version']}\nRMSE: {m['rmse']}\n")
           EOF
 
       - name: Log in to GHCR
@@ -50,13 +43,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # ← 新增：标准化为小写，并导出为 $IMAGE 供后续步骤使用
+      - name: Normalize image name (lowercase)
+        run: |
+          IMAGE="${REGISTRY}/$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]'):${GITHUB_REF_NAME}"
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+          echo "Using image: ${IMAGE}"
+
       - name: Build image
-        run: docker build -t $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME} .
+        run: docker build -t "$IMAGE" .
 
       - name: Smoke test container
         run: |
-          docker run -d --name svc -p 8000:8000 $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME}
-          sleep 3
+          docker run -d --name svc -p 8000:8000 "$IMAGE"
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/health > /dev/null; then
+              echo "Service is up"; break
+            fi
+            echo "Waiting for service... ($i)"; sleep 1
+          done
           curl -f http://localhost:8000/health
           curl -f -X POST http://localhost:8000/predict \
             -H "Content-Type: application/json" \
@@ -64,7 +69,7 @@ jobs:
           docker rm -f svc
 
       - name: Push image to GHCR
-        run: docker push $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME}
+        run: docker push "$IMAGE"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
