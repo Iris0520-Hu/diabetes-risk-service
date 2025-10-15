@@ -25,6 +25,8 @@ jobs:
         run: python ml/train_v01.py
 
       - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: pytest -q
 
       - name: Lint
