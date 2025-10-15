@@ -1,4 +1,6 @@
-import pathlib, json, joblib
+import pathlib
+import json
+import joblib
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -8,7 +10,9 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 
 SEED = 42
-def rmse(y_true, y_pred): return sqrt(mean_squared_error(y_true, y_pred))
+
+def rmse(y_true, y_pred):
+    return sqrt(mean_squared_error(y_true, y_pred))
 
 def train(output_dir="artifacts", version="v0.1"):
     data = load_diabetes(as_frame=True)
@@ -22,9 +26,13 @@ def train(output_dir="artifacts", version="v0.1"):
     ypred = pipe.predict(Xte)
     score = rmse(yte, ypred)
 
-    out = pathlib.Path(output_dir); out.mkdir(parents=True, exist_ok=True)
+    out = pathlib.Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
     joblib.dump(pipe, out / "model.pkl")
-    (out / "metrics.json").write_text(json.dumps({"version": version, "rmse": float(score)}, indent=2))
+    (out / "metrics.json").write_text(
+        json.dumps({"version": version, "rmse": float(score)}, indent=2)
+    )
     print(f"RMSE={score:.4f}")
 
 if __name__ == "__main__":
