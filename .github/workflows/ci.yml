@@ -6,7 +6,6 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,14 +20,15 @@ jobs:
           pip install -r requirements.txt
           pip install pytest ruff
 
-      - name: Lint
-        run: ruff check .
+      # 先训练，生成 artifacts/model.pkl 和 metrics.json
+      - name: Train model (v0.1)
+        run: python ml/train_v01.py
 
       - name: Run tests
         run: pytest -q
 
-      - name: Train model (v0.1)
-        run: python ml/train_v01.py
+      - name: Lint
+        run: ruff check .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
