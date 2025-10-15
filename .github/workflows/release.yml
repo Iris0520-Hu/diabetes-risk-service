@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest ruff
+
+      - name: Train model (v0.1)
+        run: python ml/train_v01.py
+
+      - name: Prepare release notes
+        run: |
+          python - << 'EOF'
+          import json
+          m = json.load(open('artifacts/metrics.json'))
+          with open('RELEASE_NOTES.md','w') as f:
+              f.write(f"Version: {m['version']}\n")
+              f.write(f"RMSE: {m['rmse']}\n")
+          EOF
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: docker build -t $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME} .
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name svc -p 8000:8000 $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME}
+          sleep 3
+          curl -f http://localhost:8000/health
+          curl -f -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d '{"age":0.02,"sex":-0.044,"bmi":0.06,"bp":-0.03,"s1":-0.02,"s2":0.03,"s3":-0.02,"s4":0.02,"s5":0.02,"s6":-0.001}'
+          docker rm -f svc
+
+      - name: Push image to GHCR
+        run: docker push $REGISTRY/$IMAGE_NAME:${GITHUB_REF_NAME}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
