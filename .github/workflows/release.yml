@@ -25,8 +25,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest ruff
 
-      - name: Train model (v0.1)
-        run: python ml/train_v01.py
+      # - name: Train model (v0.1)
+      #   run: python ml/train_v01.py
+      - name: Train (select script by tag)
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SCRIPT="ml/train_v01.py"
+          if [[ "$TAG" == v0.2* ]]; then
+            SCRIPT="ml/train_v02.py"
+          fi
+          echo "Using training script: $SCRIPT"
+          python "$SCRIPT"
+
 
       - name: Prepare release notes
         run: |
@@ -51,7 +61,8 @@ jobs:
           echo "Using image: ${IMAGE}"
 
       - name: Build image
-        run: docker build -t "$IMAGE" .
+        # run: docker build -t "$IMAGE" .
+        run: docker build --build-arg MODEL_VERSION=${GITHUB_REF_NAME} -t "$IMAGE" .
 
       - name: Smoke test container
         run: |

@@ -2,10 +2,12 @@ import pathlib
 import joblib
 from fastapi import FastAPI, HTTPException
 from app.models import PredictRequest, PredictResponse
+import os
 
 ART_DIR = pathlib.Path(__file__).resolve().parents[1] / "artifacts"
 MODEL_PATH = ART_DIR / "model.pkl"
-MODEL_VERSION = "v0.1"  # v0.2 时再改
+# MODEL_VERSION = "v0.1"  # v0.2 时再改
+MODEL_VERSION = os.getenv("MODEL_VERSION", "v0.1")
 
 app = FastAPI(title="Virtual Diabetes Clinic Risk Service", version=MODEL_VERSION)
 _model = None  # 简单的进程内缓存
