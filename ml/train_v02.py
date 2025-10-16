@@ -7,7 +7,7 @@ from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-
+from sklearn.ensemble import GradientBoostingRegressor
 SEED = 42
 
 def rmse(y_true, y_pred):
@@ -23,11 +23,20 @@ def train(output_dir="artifacts", version="v0.2"):
     )
 
     # v0.2: 随机森林（对非线性更友好，不需要标准化）
-    model = RandomForestRegressor(
-        n_estimators=400,
-        random_state=SEED,
-        n_jobs=-1,
+    # model = RandomForestRegressor(
+    #     n_estimators=400,
+    #     random_state=SEED,
+    #     n_jobs=-1,
+    # )
+    
+
+    model = GradientBoostingRegressor(
+        n_estimators=500,
+        learning_rate=0.05,
+        max_depth=3,
+        random_state=SEED
     )
+
     model.fit(Xtr, ytr)
 
     ypred = model.predict(Xte)
